@@ -46,6 +46,7 @@
 #include "app_error.h"
 #include "nrf_delay.h"
 #include "app_util_platform.h"
+#include "nrf_log.h"
 
 #define RTC1_IRQ_PRI            APP_IRQ_PRIORITY_LOWEST                        /**< Priority of the RTC1 interrupt (used for checking for timeouts and executing timeout handlers). */
 #define SWI_IRQ_PRI             APP_IRQ_PRIORITY_LOWEST                        /**< Priority of the SWI  interrupt (used for updating the timer list). */
@@ -975,9 +976,11 @@ uint32_t app_timer_create(app_timer_id_t const *      p_timer_id,
                           app_timer_mode_t            mode,
                           app_timer_timeout_handler_t timeout_handler)
 {
+    uint32_t error = 0;
+   
     // Check state and parameters
     VERIFY_MODULE_INITIALIZED();
-
+    
     if (timeout_handler == NULL)
     {
         return NRF_ERROR_INVALID_PARAM;

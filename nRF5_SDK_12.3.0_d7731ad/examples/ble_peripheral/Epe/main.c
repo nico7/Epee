@@ -78,7 +78,7 @@
 #define NRF_LOG_MODULE_NAME "APP"
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
-
+#include "nrf_delay.h"
 
 #define IS_SRVC_CHANGED_CHARACT_PRESENT 0                                           /**< Include the service_changed characteristic. If not enabled, the server's database cannot be changed for the lifetime of the device. */
 
@@ -138,6 +138,9 @@ static ble_uuid_t                       m_adv_uuids[] = {{EPE_SERVICE_UUID, EPE_
 
 static ble_bas_t  m_bas;                                    /**< Structure used to identify the battery service. */
 
+
+volatile uint8_t touchee_changed = 0;
+volatile uint8_t connected = 0;
 APP_TIMER_DEF(m_battery_timer_id);        
 
 
@@ -188,7 +191,15 @@ static void gap_params_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-
+/**@brief Function for the Timer initialization.
+ *
+ * @details Initializes the timer module. This creates and starts application timers.
+ */
+static void timers_init(void)
+{
+    // Initialize timer module.
+    APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
+}
 /**@brief Function for handling the data from the Nordic UART Service.
  *
  * @details This function will process the data received from the Nordic UART BLE Service and send
@@ -201,12 +212,12 @@ static void gap_params_init(void)
 /**@snippet [Handling the data received over BLE] */
 static void epe_data_handler(ble_epe_t * p_epe, uint8_t * p_data, uint16_t length)
 {
-    for (uint32_t i = 0; i < length; i++)
-    {
-        while (app_uart_put(p_data[i]) != NRF_SUCCESS);
-    }
-    while (app_uart_put('\r') != NRF_SUCCESS);
-    while (app_uart_put('\n') != NRF_SUCCESS);
+//    for (uint32_t i = 0; i < length; i++)
+//    {
+//        while (app_uart_put(p_data[i]) != NRF_SUCCESS);
+//    }
+//    while (app_uart_put('\r') != NRF_SUCCESS);
+//    while (app_uart_put('\n') != NRF_SUCCESS);
 }
 /**@snippet [Handling the data received over BLE] */
 
@@ -262,8 +273,8 @@ static void timers_start(void)
 {
     uint32_t err_code;
 
-    err_code = app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
-    APP_ERROR_CHECK(err_code);
+   // err_code = app_timer_start(m_battery_timer_id, BATTERY_LEVEL_MEAS_INTERVAL, NULL);
+   // APP_ERROR_CHECK(err_code);
 }
 
 
@@ -374,14 +385,14 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
 static void on_ble_evt(ble_evt_t * p_ble_evt)
 {
     uint32_t err_code;
-
+    
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
             err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-
+            connected = 1;
 
             NRF_LOG_INFO("BLE Connected with Handle = %x\n", m_conn_handle);
             break; // BLE_GAP_EVT_CONNECTED
@@ -389,7 +400,7 @@ static void on_ble_evt(ble_evt_t * p_ble_evt)
             err_code = bsp_indication_set(BSP_INDICATE_IDLE);
             APP_ERROR_CHECK(err_code);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
-            
+            connected = 0;
             NRF_LOG_INFO("BLE Disconnection\n");
             break; // BLE_GAP_EVT_DISCONNECTED
 
@@ -551,6 +562,30 @@ static void ble_stack_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
+void toucheed(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
+{
+  touchee_changed = 1;
+  nrf_drv_gpiote_in_event_enable(BUTTON_HIGH, false);
+  nrf_delay_ms(300);
+  while(!nrf_drv_gpiote_in_is_set(BUTTON_HIGH));
+}
+void other_gpio_init()
+{
+    uint32_t err_code = 0;
+    err_code = nrf_drv_gpiote_init();
+    APP_ERROR_CHECK(err_code);
+    
+    nrf_gpio_cfg_output(BUTTON_LOW);
+    nrf_gpio_pin_clear(BUTTON_LOW);
+  //  nrf_gpio_cfg_input(BUTTON_HIGH, NRF_GPIO_PIN_PULLUP);
+    nrf_drv_gpiote_in_config_t in_config = GPIOTE_CONFIG_IN_SENSE_HITOLO(true);     //Configure to generate interrupt and wakeup on pin signal low. "false" means that gpiote will use the PORT event, which is low power, i.e. does not add any noticable current consumption (<<1uA). Setting this to "true" will make the gpiote module use GPIOTE->IN events which add ~8uA for nRF52 and ~1mA for nRF51.
+    in_config.pull = NRF_GPIO_PIN_PULLUP;                                            //Configure pullup for input pin to prevent it from floting. Pin is pulled down when button is pressed on nRF5x-DK boards, see figure two in http://infocenter.nordicsemi.com/topic/com.nordic.infocenter.nrf52/dita/nrf52/development/dev_kit_v1.1.0/hw_btns_leds.html?cp=2_0_0_1_4
+    err_code = nrf_drv_gpiote_in_init(BUTTON_HIGH, &in_config, toucheed);
+    
+    nrf_drv_gpiote_in_event_enable(BUTTON_HIGH, true);
+ //   NVIC_EnableIRQ(GPIOTE_IRQn);
+}
+
 /**@brief Function for the Event Scheduler initialization.
  */
 static void scheduler_init(void)
@@ -654,28 +689,28 @@ void uart_event_handle(app_uart_evt_t * p_event)
 /**@brief  Function for initializing the UART module.
  */
 /**@snippet [UART Initialization] */
-static void uart_init(void)
-{
-    uint32_t                     err_code;
-    const app_uart_comm_params_t comm_params =
-    {
-        RX_PIN_NUMBER,
-        TX_PIN_NUMBER,
-        RTS_PIN_NUMBER,
-        CTS_PIN_NUMBER,
-        APP_UART_FLOW_CONTROL_DISABLED,
-        false,
-        UART_BAUDRATE_BAUDRATE_Baud115200
-    };
-
-    APP_UART_FIFO_INIT( &comm_params,
-                       UART_RX_BUF_SIZE,
-                       UART_TX_BUF_SIZE,
-                       uart_event_handle,
-                       APP_IRQ_PRIORITY_LOWEST,
-                       err_code);
-    APP_ERROR_CHECK(err_code);
-}
+//static void uart_init(void)
+//{
+//    uint32_t                     err_code;
+//    const app_uart_comm_params_t comm_params =
+//    {
+//        RX_PIN_NUMBER,
+//        TX_PIN_NUMBER,
+//        RTS_PIN_NUMBER,
+//        CTS_PIN_NUMBER,
+//        APP_UART_FLOW_CONTROL_DISABLED,
+//        false,
+//        UART_BAUDRATE_BAUDRATE_Baud115200
+//    };
+//
+//    APP_UART_FIFO_INIT( &comm_params,
+//                       UART_RX_BUF_SIZE,
+//                       UART_TX_BUF_SIZE,
+//                       uart_event_handle,
+//                       APP_IRQ_PRIORITY_LOWEST,
+//                       err_code);
+//    APP_ERROR_CHECK(err_code);
+//}
 /**@snippet [UART Initialization] */
 
 
@@ -716,13 +751,13 @@ static void buttons_leds_init(bool * p_erase_bonds)
 {
     bsp_event_t startup_event;
 
-    uint32_t err_code = bsp_init(BSP_INIT_LED | BSP_INIT_BUTTONS,
+    uint32_t err_code = bsp_init(BSP_INIT_LED | BSP_INIT_NONE,
                                  APP_TIMER_TICKS(100, APP_TIMER_PRESCALER),
                                  bsp_event_handler);
     APP_ERROR_CHECK(err_code);
 
-    err_code = bsp_btn_ble_init(NULL, &startup_event);
-    APP_ERROR_CHECK(err_code);
+   // err_code = bsp_btn_ble_init(NULL, &startup_event);
+    //APP_ERROR_CHECK(err_code);
 
     *p_erase_bonds = (startup_event == BSP_EVENT_CLEAR_BONDING_DATA);
 }
@@ -741,18 +776,21 @@ static void power_manage(void)
  */
 int main(void)
 {
-    uint32_t err_code;
-    bool erase_bonds;
 
+    uint32_t err_code;
+    uint32_t pin_status;
+    bool erase_bonds;
+    uint8_t value = 1;
     // Initialize.
     err_code = NRF_LOG_INIT(NULL);
     APP_ERROR_CHECK(err_code);
 
     // Initialize.
-
-    uart_init();
-
+    timers_init();
+    //uart_init();
+    
     buttons_leds_init(&erase_bonds);
+    other_gpio_init();
     ble_stack_init();
     //adc_configure();
     scheduler_init();
@@ -763,7 +801,7 @@ int main(void)
     conn_params_init();
 
     // Start execution.
-    NRF_LOG_INFO("SDK 12.3 Example with UART Start!\n");    
+    //NRF_LOG_INFO("SDK 12.3 Example with UART Start!\n");    
     err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
 
@@ -772,11 +810,27 @@ int main(void)
     // Enter main loop.
     for (;;)
     {
-        app_sched_execute();
+        if(touchee_changed != 0 && connected)
+        {
+          touchee_changed = 0;
+          err_code = epe_characteristiv_value_update(&m_epe, &value, 1);
+          NRF_LOG_RAW_INFO("%X/n");
+          value++;
+        }
         if (NRF_LOG_PROCESS() == false)
         {
-            power_manage();
+          //  power_manage();
         }
+        app_sched_execute();
+//        pin_status = nrf_gpio_pin_read(BUTTON_HIGH);
+//        if(0 == pin_status)
+//        {
+//            nrf_delay_ms(100);
+//            err_code = epe_characteristiv_value_update(&m_epe, &value, 1);
+//            value++;
+//        }
+
+
     }
 }
 

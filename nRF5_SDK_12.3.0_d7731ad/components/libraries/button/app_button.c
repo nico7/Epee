@@ -44,6 +44,7 @@
 #include "app_error.h"
 #include "nrf_drv_gpiote.h"
 #include "nrf_assert.h"
+#include "nrf_log.h"
 
 
 static app_button_cfg_t const *       mp_buttons = NULL;           /**< Button configuration. */
@@ -151,7 +152,7 @@ uint32_t app_button_init(app_button_cfg_t const *       p_buttons,
         err_code = nrf_drv_gpiote_init();
         VERIFY_SUCCESS(err_code);
     }
-
+  
     // Save configuration.
     mp_buttons          = p_buttons;
     m_button_count      = button_count;
@@ -172,9 +173,13 @@ uint32_t app_button_init(app_button_cfg_t const *       p_buttons,
     }
 
     // Create polling timer.
-    return app_timer_create(&m_detection_delay_timer_id,
+    err_code = app_timer_create(&m_detection_delay_timer_id,
                             APP_TIMER_MODE_SINGLE_SHOT,
                             detection_delay_timeout_handler);
+
+    NRF_LOG_INFO("error = %x", err_code);
+    return err_code;
+          
 }
 
 uint32_t app_button_enable(void)

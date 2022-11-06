@@ -69,6 +69,7 @@ do                                          \
 {                                           \
     if (!(statement))                       \
     {                                       \
+        NRF_LOG_INFO("%s %X\n", statement, err_code); \
         return err_code;                    \
     }                                       \
 } while (0)

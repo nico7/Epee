@@ -91,6 +91,9 @@ uint32_t ble_epe_string_send(ble_epe_t * p_epe, uint8_t * p_string, uint16_t len
 
 uint32_t ble_epe_send_file(ble_epe_t * p_epe, uint8_t * p_data, uint32_t data_length, uint32_t max_packet_length);
 
+uint32_t epe_characteristiv_value_update(ble_epe_t * p_epe, uint8_t * custom_value, uint8_t length);
+
+
 #ifdef __cplusplus
 }
 #endif

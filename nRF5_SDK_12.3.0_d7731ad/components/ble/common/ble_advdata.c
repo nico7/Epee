@@ -42,6 +42,7 @@
 #include "ble_gap.h"
 #include "ble_srv_common.h"
 #include "sdk_common.h"
+#include "nrf_log.h"
 
 // NOTE: For now, Security Manager Out of Band Flags (OOB) are omitted from the advertising data.
 

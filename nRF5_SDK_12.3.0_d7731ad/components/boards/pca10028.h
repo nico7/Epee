@@ -50,13 +50,13 @@ extern "C" {
 #define LEDS_NUMBER    4
 
 #define LED_START      21
-#define LED_1          21
+#define LED_1          19
 #define LED_2          22
 #define LED_3          23
 #define LED_4          24
 #define LED_STOP       24
 
-#define LEDS_ACTIVE_STATE 0
+#define LEDS_ACTIVE_STATE 1
 
 #define LEDS_LIST { LED_1, LED_2, LED_3, LED_4 }
 
@@ -67,9 +67,9 @@ extern "C" {
 #define BSP_LED_2      LED_3
 #define BSP_LED_3      LED_4
 
-#define BUTTONS_NUMBER 1
+#define BUTTONS_NUMBER 0
 
-#define BUTTON_1       10
+#define BUTTON_1       11
 
 #define BUTTON_PULL    NRF_GPIO_PIN_PULLUP
 
@@ -80,8 +80,11 @@ extern "C" {
 #define BSP_BUTTON_0   BUTTON_1
 
 
+#define BUTTON_HIGH   9
+#define BUTTON_LOW    8
+
 #define RX_PIN_NUMBER  11
-#define TX_PIN_NUMBER  9
+
 #define CTS_PIN_NUMBER 17
 #define RTS_PIN_NUMBER 8
 #define HWFC           true
@@ -161,10 +164,10 @@ extern "C" {
 #ifdef S210
 #define NRF_CLOCK_LFCLKSRC      NRF_CLOCK_LFCLKSRC_XTAL_20_PPM
 #else
-#define NRF_CLOCK_LFCLKSRC      {.source        = NRF_CLOCK_LF_SRC_XTAL,            \
+#define NRF_CLOCK_LFCLKSRC      {.source        = NRF_CLOCK_LF_SRC_SYNTH,            \
                                  .rc_ctiv       = 0,                                \
                                  .rc_temp_ctiv  = 0,                                \
-                                 .xtal_accuracy = NRF_CLOCK_LF_XTAL_ACCURACY_20_PPM}
+                                 } //.xtal_accuracy = NRF_CLOCK_LF_XTAL_ACCURACY_20_PPM}
 #endif
 
 #ifdef __cplusplus

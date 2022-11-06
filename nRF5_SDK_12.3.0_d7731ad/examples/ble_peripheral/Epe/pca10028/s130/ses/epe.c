@@ -208,6 +208,8 @@ static uint32_t tx_char_add(ble_epe_t * p_epe, const ble_epe_init_t * p_epe_init
     memset(&char_md, 0, sizeof(char_md));
 
     char_md.char_props.write         = 1;
+    char_md.char_props.read          = 1;
+    char_md.char_props.notify        = 1;
     char_md.char_props.write_wo_resp = 1;
     char_md.p_char_user_desc         = NULL;
     char_md.p_char_pf                = NULL;
@@ -349,7 +351,7 @@ uint32_t ble_epe_init(ble_epe_t * p_epe, const ble_epe_init_t * p_epe_init)
 
     p_epe->tx_complete_handler     = p_epe_init->tx_complete_handler;
 
-    /**@snippet [Adding proprietary Service to S110 SoftDevice] */
+    /**@snippet [Adding proprietary Service to S130 SoftDevice] */
     // Add a custom base UUID.
     err_code = sd_ble_uuid_vs_add(&epe_base_uuid, &p_epe->uuid_type);
     VERIFY_SUCCESS(err_code);
@@ -365,8 +367,8 @@ uint32_t ble_epe_init(ble_epe_t * p_epe, const ble_epe_init_t * p_epe_init)
     VERIFY_SUCCESS(err_code);
 
     // Add the RX Characteristic.
-    err_code = rx_char_add(p_epe, p_epe_init);
-    VERIFY_SUCCESS(err_code);
+   // err_code = rx_char_add(p_epe, p_epe_init);
+    //VERIFY_SUCCESS(err_code);
 
     // Add the TX Characteristic.
     err_code = tx_char_add(p_epe, p_epe_init);
@@ -461,3 +463,64 @@ uint32_t ble_epe_send_file(ble_epe_t * p_epe, uint8_t * p_data, uint32_t data_le
         return err_code;
 }
 
+
+uint32_t epe_characteristiv_value_update(ble_epe_t * p_epe, uint8_t * custom_value, uint8_t length)
+{
+
+    if (p_epe == NULL)
+    {
+        return NRF_ERROR_NULL;
+    }
+
+    uint32_t err_code = NRF_SUCCESS;
+    ble_gatts_value_t gatts_value;
+
+    // Initialize value structure.
+    memset(&gatts_value, 0, sizeof(uint8_t)); // at least make this a 2, but idk 
+
+    gatts_value.len = length;
+    gatts_value.offset = 0;
+    gatts_value.p_value = custom_value;
+
+    // Update database.
+    err_code = sd_ble_gatts_value_set(p_epe->conn_handle,
+                                      p_epe->tx_handles.value_handle,
+                                      &gatts_value);
+
+    if (err_code != NRF_SUCCESS)
+    {
+        return err_code;
+    }
+   
+    // Send value if connected and notifying.
+    if((p_epe->conn_handle != BLE_CONN_HANDLE_INVALID))
+    {
+        ble_gatts_hvx_params_t hvx_params;
+
+        memset(&hvx_params, 0, sizeof(hvx_params));
+
+        hvx_params.handle = p_epe->tx_handles.value_handle;
+        hvx_params.type   = BLE_GATT_HVX_NOTIFICATION;//BLE_GATT_HVX_INDICATION;
+        hvx_params.offset = gatts_value.offset;
+        hvx_params.p_len  = &gatts_value.len;
+        hvx_params.p_data = gatts_value.p_value;
+        
+
+        err_code = sd_ble_gatts_hvx(p_epe->conn_handle, &hvx_params);
+        
+        if(err_code == BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+        {
+            err_code = sd_ble_gatts_sys_attr_set(p_epe->conn_handle, NULL, 0, BLE_GATTS_SYS_ATTR_FLAG_USR_SRVCS);
+        }
+    
+    }
+    else
+    {
+        err_code = NRF_ERROR_INVALID_STATE;
+    }
+
+    return err_code;
+
+
+
+}

@@ -186,18 +186,18 @@ static uint32_t advertising_buttons_configure()
 static void startup_event_extract(bsp_event_t * p_startup_event)
 {
     // React to button states
-    if (bsp_button_is_pressed(BTN_ID_WAKEUP_BOND_DELETE))
-    {
-        *p_startup_event = BSP_EVENT_CLEAR_BONDING_DATA;
-    }
-    else if (bsp_button_is_pressed(BTN_ID_WAKEUP))
-    {
-        *p_startup_event = BSP_EVENT_WAKEUP;
-    }
-    else
-    {
-        *p_startup_event = BSP_EVENT_NOTHING;
-    }
+//    if (bsp_button_is_pressed(BTN_ID_WAKEUP_BOND_DELETE))
+//    {
+//        *p_startup_event = BSP_EVENT_CLEAR_BONDING_DATA;
+//    }
+//    else if (bsp_button_is_pressed(BTN_ID_WAKEUP))
+//    {
+//        *p_startup_event = BSP_EVENT_WAKEUP;
+//    }
+//    else
+//    {
+//        *p_startup_event = BSP_EVENT_NOTHING;
+//    }
 }
 
 
